@@ -1,7 +1,7 @@
 import 'package:aplikasi_laporan_sampah/constant/app_image.dart';
 import 'package:aplikasi_laporan_sampah/constant/app_style.dart';
 import 'package:aplikasi_laporan_sampah/helper/preference.dart';
-import 'package:aplikasi_laporan_sampah/pages/login_screen.dart';
+import 'package:aplikasi_laporan_sampah/pages/login_page.dart';
 // import 'package:belajar_flutter/constant/app_image.dart';
 // import 'package:belajar_flutter/constant/app_style.dart';
 // import 'package:belajar_flutter/helper/preference.dart';

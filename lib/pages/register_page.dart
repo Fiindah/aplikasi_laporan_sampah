@@ -1,3 +1,4 @@
+import 'package:aplikasi_laporan_sampah/api/user_api.dart';
 import 'package:aplikasi_laporan_sampah/constant/app_color.dart';
 // import 'package:belajar_flutter/constant/app_color.dart';
 // import 'package:belajar_flutter/meet25/tugas_15/api/user_api.dart';
@@ -11,7 +12,7 @@ class RegisterScreenAPI extends StatefulWidget {
 }
 
 class _RegisterScreenAPIState extends State<RegisterScreenAPI> {
-  // final UserService userService = UserService();
+  final UserService userService = UserService();
   bool isVisibility = false;
   bool isLoading = false;
   final TextEditingController emailController = TextEditingController();
@@ -23,33 +24,30 @@ class _RegisterScreenAPIState extends State<RegisterScreenAPI> {
     setState(() {
       isLoading = true;
     });
-    // final res = await userService.registerUser(
-    //   email: emailController.text,
-    //   name: nameController.text,
-    //   password: passwordController.text,
-    // );
-    // if (res["data"] != null) {
-    //   ScaffoldMessenger.of(context).showSnackBar(
-    //     SnackBar(
-    //       content: Text("Registration successful!"),
-    //       backgroundColor: Colors.green,
-    //     ),
-    //   );
-    //   Navigator.pop(context);
-    // } else if (res["errors"] != null) {
-    //   ScaffoldMessenger.of(context).showSnackBar(
-    //     SnackBar(
-    //       content: Text("Maaf, ${res["message"]}"),
-    //       backgroundColor: Colors.red,
-    //     ),
-    //   );
-    // }
-    // setState(() {
-    //   isLoading = false;
-    // });
-
-    // } else {
-    // }
+    final res = await userService.registerUser(
+      email: emailController.text,
+      name: nameController.text,
+      password: passwordController.text,
+    );
+    if (res["data"] != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Registration successful!"),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context);
+    } else if (res["errors"] != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Maaf, ${res["message"]}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+    setState(() {
+      isLoading = false;
+    });
   }
 
   @override

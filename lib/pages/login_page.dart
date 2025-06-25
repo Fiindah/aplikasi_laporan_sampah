@@ -1,9 +1,8 @@
-// import 'package:belajar_flutter/constant/app_color.dart';
-// import 'package:belajar_flutter/helper/preference.dart';
-// import 'package:belajar_flutter/meet25/tugas_15/api/user_api.dart';
-// import 'package:belajar_flutter/meet25/tugas_15/profile_screen.dart';
-// import 'package:belajar_flutter/meet25/tugas_15/register_screen.dart';
+import 'package:aplikasi_laporan_sampah/api/user_api.dart';
 import 'package:aplikasi_laporan_sampah/constant/app_color.dart';
+import 'package:aplikasi_laporan_sampah/helper/preference.dart';
+import 'package:aplikasi_laporan_sampah/pages/home_page.dart';
+import 'package:aplikasi_laporan_sampah/pages/register_page.dart';
 import 'package:flutter/material.dart';
 
 class LoginScreenApi extends StatefulWidget {
@@ -14,7 +13,7 @@ class LoginScreenApi extends StatefulWidget {
 }
 
 class _LoginScreenApiState extends State<LoginScreenApi> {
-  // final UserService userService = UserService();
+  final UserService userService = UserService();
   bool isVisibility = false;
   bool isLoading = false;
 
@@ -22,40 +21,36 @@ class _LoginScreenApiState extends State<LoginScreenApi> {
   final TextEditingController passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  // void login() async {
-  //   setState(() {
-  //     isLoading = true;
-  //   });
-  //   final res = await userService.loginUser(
-  //     email: emailController.text,
-  //     password: passwordController.text,
-  //   );
-  //   if (res["data"] != null) {
-  //     PreferenceHandler.saveToken(res["data"]["token"]);
-  //     print("Token: ${res["data"]["token"]}");
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(
-  //         content: Text("Login successful!"),
-  //         backgroundColor: Colors.green,
-  //       ),
-  //     );
-  //     Navigator.pushNamedAndRemoveUntil(
-  //       context,
-  //       ProfileUserScreen.id,
-  //       (route) => false,
-  //     );
-  //   } else if (res["errors"] != null) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(
-  //         content: Text("${res["message"]}"),
-  //         backgroundColor: Colors.red,
-  //       ),
-  //     );
-  //   }
-  //   setState(() {
-  //     isLoading = false;
-  //   });
-  // }
+  void login() async {
+    setState(() {
+      isLoading = true;
+    });
+    final res = await userService.loginUser(
+      email: emailController.text,
+      password: passwordController.text,
+    );
+    if (res["data"] != null) {
+      SharePref.saveToken(res["data"]["token"]);
+      print("Token: ${res["data"]["token"]}");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Login successful!"),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pushNamedAndRemoveUntil(context, HomePage.id, (route) => false);
+    } else if (res["errors"] != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("${res["message"]}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+    setState(() {
+      isLoading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -125,11 +120,11 @@ class _LoginScreenApiState extends State<LoginScreenApi> {
                 height: 56,
                 child: ElevatedButton(
                   onPressed: () {
-                    // if (_formKey.currentState!.validate()) {
-                    //   print("Email: ${emailController.text}");
-                    //   print("Password: ${passwordController.text}");
-                    //   login();
-                    // }
+                    if (_formKey.currentState!.validate()) {
+                      print("Email: ${emailController.text}");
+                      print("Password: ${passwordController.text}");
+                      login();
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColor.mygreen,
@@ -160,8 +155,7 @@ class _LoginScreenApiState extends State<LoginScreenApi> {
                   ),
                   TextButton(
                     onPressed: () {
-                      //   Navigator.pushNamed(context, RegisterScreenAPI.id);
-                      //
+                      Navigator.pushNamed(context, RegisterScreenAPI.id);
                     },
                     child: Text(
                       "Sign Up",
