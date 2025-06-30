@@ -1,8 +1,8 @@
-// To parse this JSON data, do
-//
-//     final laporanResponse = laporanResponseFromJson(jsonString);
+// lib/models/laporan_response.dart
 
 import 'dart:convert';
+
+import 'package:aplikasi_laporan_sampah/models/login_response.dart';
 
 LaporanResponse laporanResponseFromJson(String str) =>
     LaporanResponse.fromJson(json.decode(str));
@@ -12,7 +12,7 @@ String laporanResponseToJson(LaporanResponse data) =>
 
 class LaporanResponse {
   String? message;
-  Data? data;
+  Data? data; // Now references the Data from laporan_data_model.dart
 
   LaporanResponse({this.message, this.data});
 
@@ -23,40 +23,4 @@ class LaporanResponse {
       );
 
   Map<String, dynamic> toJson() => {"message": message, "data": data?.toJson()};
-}
-
-class Data {
-  int? userId;
-  String? judul;
-  String? isi;
-  String? updatedAt;
-  String? createdAt;
-  int? id;
-
-  Data({
-    this.userId,
-    this.judul,
-    this.isi,
-    this.updatedAt,
-    this.createdAt,
-    this.id,
-  });
-
-  factory Data.fromJson(Map<String, dynamic> json) => Data(
-    userId: json["user_id"],
-    judul: json["judul"],
-    isi: json["isi"],
-    updatedAt: json["updated_at"],
-    createdAt: json["created_at"],
-    id: json["id"],
-  );
-
-  Map<String, dynamic> toJson() => {
-    "user_id": userId,
-    "judul": judul,
-    "isi": isi,
-    "updated_at": updatedAt,
-    "created_at": createdAt,
-    "id": id,
-  };
 }

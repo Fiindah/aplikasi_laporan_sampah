@@ -1,645 +1,524 @@
-import 'dart:io';
-
-import 'package:aplikasi_laporan_sampah/api/user_api.dart';
-import 'package:aplikasi_laporan_sampah/helper/preference.dart';
-import 'package:aplikasi_laporan_sampah/models/laporan_response.dart';
+import 'package:aplikasi_laporan_sampah/api/report_api.dart';
+import 'package:aplikasi_laporan_sampah/constant/app_color.dart';
+import 'package:aplikasi_laporan_sampah/models/laporan_data_model.dart';
+import 'package:aplikasi_laporan_sampah/models/list_laporan_response.dart';
+import 'package:aplikasi_laporan_sampah/pages/add_report_page.dart';
+import 'package:aplikasi_laporan_sampah/pages/edit_report_page.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
+  static const String id = "/home_page";
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  final String _namaPengguna =
-      'Budi'; // Nanti bisa diambil dari data user login
-  int _selectedIndex = 0;
-
-  List<Report> _laporanSampah =
-      []; // Ubah menjadi list kosong dan akan diisi dari API
-  bool _isLoading = true; // State untuk loading
-  String? _errorMessage; // State untuk error message
-
-  // UserService instance
-  final UserService _userService = UserService();
-  String? _currentUserId; // Untuk menyimpan userId yang sedang login
+  Future<ListLaporanResponse>? _futureReports;
+  final List<String> _allStatuses = ['masuk', 'proses', 'selesai'];
 
   @override
   void initState() {
     super.initState();
-    _fetchUserIdAndReports(); // Panggil fungsi untuk ambil userId dan laporan
+    _loadReports();
   }
 
-  Future<void> _fetchUserIdAndReports() async {
+  void _loadReports() {
     setState(() {
-      _isLoading = true;
-      _errorMessage = null;
+      _futureReports = ReportService().getReports().catchError((error) {
+        debugPrint('Error fetching reports: $error');
+        throw error;
+      });
     });
-    try {
-      _currentUserId = await SharePref.getUserId(); // Ambil userId dummy/asli
-      await _fetchLaporan();
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Gagal mengambil ID pengguna atau laporan: $e';
-        _isLoading = false;
-      });
-      print('Error _fetchUserIdAndReports: $e');
-    }
   }
 
-  Future<void> _fetchLaporan() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-    try {
-      final List<LaporanResponse> fetchedReports =
-          await _userService.getListLaporan();
-      setState(() {
-        _laporanSampah = fetchedReports;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Gagal memuat laporan: $e';
-        _isLoading = false;
-      });
-      print('Error _fetchLaporan: $e');
-    }
+  Future<void> _refreshReports() async {
+    _loadReports();
   }
 
-  // Fungsi untuk menghapus laporan
-  void _deleteLaporan(String id) async {
-    setState(() {
-      _isLoading = true; // Aktifkan loading saat menghapus
-      _errorMessage = null;
-    });
-    try {
-      await _userService.deleteLaporan(id);
-      setState(() {
-        _laporanSampah.removeWhere((laporan) => laporan.id == id);
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Laporan $id berhasil dihapus')));
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Gagal menghapus laporan: $e')));
-      setState(() {
-        _errorMessage = 'Gagal menghapus laporan: $e';
-      });
-      print('Error _deleteLaporan: $e');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  // Fungsi untuk memperbarui laporan
-  void _updateLaporan(Report updatedData) async {
-    setState(() {
-      _isLoading = true; // Aktifkan loading saat update
-      _errorMessage = null;
-    });
-    try {
-      // Pastikan _currentUserId tidak null
-      if (_currentUserId == null) {
-        throw Exception("User ID not available for update.");
-      }
-
-      await _userService.updatedLaporan(
-        updatedData.id,
-        _currentUserId!, // Gunakan userId yang ada
-        updatedData.lokasiLaporan,
-        updatedData.jenisSampah,
-        updatedData.deskripsi ?? '', // Pastikan tidak null
-        updatedData.status,
-        updatedData.gambarUrl,
-      );
-
-      setState(() {
-        final index = _laporanSampah.indexWhere(
-          (laporan) => laporan.id == updatedData.id,
-        );
-        if (index != -1) {
-          _laporanSampah[index] = updatedData; // Update di UI lokal
-        }
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Laporan ${updatedData.id} berhasil diperbarui'),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Gagal memperbarui laporan: $e')));
-      setState(() {
-        _errorMessage = 'Gagal memperbarui laporan: $e';
-      });
-      print('Error _updateLaporan: $e');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  // List halaman yang akan diakses melalui BottomNavigationBar
-  // Menggunakan `late` dan menginisialisasi di `initState` atau sebagai getter
-  // Atau karena ini stateful widget, bisa langsung diinisialisasi di sini
-  late final List<Widget> _widgetOptions = <Widget>[
-    _buildHomePageContent(),
-    const Center(
-      child: Text(
-        'Halaman Riwayat Laporan',
-        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-      ),
-    ),
-    StatistikPage(laporanData: _laporanSampah), // Meneruskan data laporan
-  ];
-
-  String _getMonthName(int month) {
-    switch (month) {
-      case 1:
-        return 'Januari';
-      case 2:
-        return 'Februari';
-      case 3:
-        return 'Maret';
-      case 4:
-        return 'April';
-      case 5:
-        return 'Mei';
-      case 6:
-        return 'Juni';
-      case 7:
-        return 'Juli';
-      case 8:
-        return 'Agustus';
-      case 9:
-        return 'September';
-      case 10:
-        return 'Oktober';
-      case 11:
-        return 'November';
-      case 12:
-        return 'Desember';
-      default:
-        return '';
-    }
-  }
-
-  // Fungsi helper untuk mendapatkan warna berdasarkan status
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      // Pastikan case insensitive
-      case 'masuk':
-        return Colors.blue[100]!;
-      case 'proses':
-        return Colors.orange[100]!;
-      case 'selesai':
-        return Colors.green[100]!;
-      default:
-        return Colors.grey[100]!;
-    }
-  }
-
-  // Fungsi helper untuk mendapatkan warna teks berdasarkan status
-  Color _getStatusTextColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'masuk':
-        return Colors.blue[700]!;
-      case 'proses':
-        return Colors.orange[700]!;
-      case 'selesai':
-        return Colors.green[700]!;
-      default:
-        return Colors.grey[700]!;
-    }
-  }
-
-  // Fungsi yang berisi konten untuk halaman beranda
-  Widget _buildHomePageContent() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-          child: RichText(
-            text: TextSpan(
-              style: DefaultTextStyle.of(
-                context,
-              ).style.copyWith(fontSize: 22, color: Colors.black87),
-              children: <TextSpan>[
-                TextSpan(
-                  text: 'Selamat Datang, ',
-                  style: TextStyle(color: Colors.grey[700]),
-                ),
-                TextSpan(
-                  text: '$_namaPengguna!',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
+  /// Shows a bottom sheet to allow updating the status of a specific report.
+  void _showUpdateStatusBottomSheet(Data report) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext bc) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.all(20.0),
+          child: Wrap(
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16.0),
+                child: Center(
+                  child: Text(
+                    'Ubah Status Laporan "${report.judul ?? 'N/A'}"',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
+              ),
+              const Divider(),
+              ..._allStatuses.map((statusOption) {
+                return ListTile(
+                  title: Text(statusOption.toUpperCase()),
+                  leading: Icon(
+                    _getStatusIcon(statusOption),
+                    color: _getStatusColor(statusOption),
+                  ),
+                  trailing:
+                      report.status?.toLowerCase() == statusOption
+                          ? const Icon(Icons.check, color: Colors.green)
+                          : null,
+                  onTap: () async {
+                    Navigator.pop(context); // Close the bottom sheet
+                    await _updateReportStatus(
+                      report.id.toString(),
+                      statusOption,
+                    );
+                  },
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Calls the API to update the report's status.
+  Future<void> _updateReportStatus(String reportId, String newStatus) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Dialog(
+          child: Padding(
+            padding: EdgeInsets.all(20.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 20),
+                Text("Memperbarui status..."),
               ],
             ),
           ),
-        ),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Text(
-            'Laporan sampah yang perlu Anda tangani:',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-          ),
-        ),
-        _isLoading // Tampilkan loading indicator
-            ? const Expanded(child: Center(child: CircularProgressIndicator()))
-            : _errorMessage !=
-                null // Tampilkan error message
-            ? Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      color: Colors.red,
-                      size: 50,
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      _errorMessage!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.red, fontSize: 16),
-                    ),
-                    const SizedBox(height: 20),
-                    ElevatedButton(
-                      onPressed: _fetchLaporan,
-                      child: const Text('Coba Lagi'),
-                    ),
-                  ],
-                ),
-              ),
-            )
-            : _laporanSampah.isEmpty
-            ? Expanded(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.check_circle_outline,
-                      size: 80,
-                      color: Colors.green[400],
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Tidak ada laporan sampah yang perlu diambil saat ini.\nTerima kasih atas kerja keras Anda!',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 18, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ),
-            )
-            : Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16.0),
-                itemCount: _laporanSampah.length,
-                itemBuilder: (context, index) {
-                  final Report laporan = _laporanSampah[index];
-
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 16.0),
-                    elevation: 4.0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.0),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8.0),
-                                child:
-                                    laporan.gambarUrl != null
-                                        ? (laporan.isLocalImage
-                                            ? Image.file(
-                                              File(laporan.gambarUrl!),
-                                              width: 80,
-                                              height: 80,
-                                              fit: BoxFit.cover,
-                                            )
-                                            : Image.network(
-                                              laporan.gambarUrl!,
-                                              width: 80,
-                                              height: 80,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (
-                                                context,
-                                                error,
-                                                stackTrace,
-                                              ) {
-                                                return Container(
-                                                  width: 80,
-                                                  height: 80,
-                                                  color: Colors.grey[300],
-                                                  child: const Icon(
-                                                    Icons.broken_image,
-                                                    color: Colors.grey,
-                                                  ),
-                                                );
-                                              },
-                                            ))
-                                        : Container(
-                                          width: 80,
-                                          height: 80,
-                                          color: Colors.grey[300],
-                                          child: const Icon(
-                                            Icons.image_not_supported,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                              ),
-                              const SizedBox(width: 16.0),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'ID Laporan: ${laporan.id}',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey[600],
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4.0),
-                                    Text(
-                                      laporan.lokasiLaporan,
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8.0),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.category,
-                                          size: 16,
-                                          color: Colors.grey[600],
-                                        ),
-                                        const SizedBox(width: 4.0),
-                                        Text(
-                                          laporan.jenisSampah,
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.grey[700],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4.0),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.calendar_today,
-                                          size: 16,
-                                          color: Colors.grey[600],
-                                        ),
-                                        const SizedBox(width: 4.0),
-                                        Text(
-                                          '${laporan.tanggalLaporan.day} '
-                                          '${_getMonthName(laporan.tanggalLaporan.month)} '
-                                          '${laporan.tanggalLaporan.year}',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.grey[700],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Divider(height: 24, thickness: 1),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _getStatusColor(laporan.status),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  laporan.status,
-                                  style: TextStyle(
-                                    color: _getStatusTextColor(laporan.status),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                              if (laporan.status.toLowerCase() == 'masuk')
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.edit,
-                                        color: Colors.blue[700],
-                                      ),
-                                      tooltip: 'Edit Laporan',
-                                      onPressed: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder:
-                                                (context) => EditReportFormPage(
-                                                  laporanData: laporan,
-                                                  onUpdate: _updateLaporan,
-                                                ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.delete,
-                                        color: Colors.red[700],
-                                      ),
-                                      tooltip: 'Hapus Laporan',
-                                      onPressed: () {
-                                        showDialog(
-                                          context: context,
-                                          builder:
-                                              (context) => AlertDialog(
-                                                title: const Text(
-                                                  'Hapus Laporan?',
-                                                ),
-                                                content: Text(
-                                                  'Anda yakin ingin menghapus laporan ${laporan.id}?',
-                                                ),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed:
-                                                        () => Navigator.pop(
-                                                          context,
-                                                        ),
-                                                    child: const Text('Batal'),
-                                                  ),
-                                                  TextButton(
-                                                    onPressed: () {
-                                                      _deleteLaporan(
-                                                        laporan.id,
-                                                      );
-                                                      Navigator.pop(context);
-                                                    },
-                                                    child: const Text(
-                                                      'Hapus',
-                                                      style: TextStyle(
-                                                        color: Colors.red,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                        );
-                                      },
-                                    ),
-                                    const SizedBox(width: 8),
-                                  ],
-                                ),
-                              ElevatedButton.icon(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder:
-                                          (context) => DetailLaporanPage(
-                                            laporanData: laporan,
-                                          ),
-                                    ),
-                                  );
-                                },
-                                icon: const Icon(Icons.arrow_forward),
-                                label: const Text('Lihat Detail'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8.0),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-      ],
+        );
+      },
     );
+
+    try {
+      await ReportService().updateReportStatus(
+        reportId: reportId,
+        newStatus: newStatus,
+      );
+      Navigator.pop(context); // Close the loading dialog
+      _showSnackBar(
+        'Status laporan berhasil diperbarui menjadi ${newStatus.toUpperCase()}!',
+        Colors.green,
+      );
+      _refreshReports(); // Refresh the home page list
+    } catch (e) {
+      Navigator.pop(context); // Close the loading dialog
+      _showSnackBar('Gagal memperbarui status laporan: $e', Colors.red);
+      debugPrint('Error updating report status from Home Page: $e');
+    }
+  }
+
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _selectedIndex == 0
-              ? 'Lapor Sampah'
-              : (_selectedIndex == 1 ? 'Riwayat' : 'Statistik'),
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+        title: const Text(
+          'EcoGreen',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor: Colors.green[700],
+        backgroundColor: AppColor.mygreen,
         centerTitle: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications, color: Colors.white),
-            onPressed: () {
-              // Aksi saat tombol notifikasi ditekan
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.account_circle, color: Colors.white),
-            onPressed: () {
-              // Aksi saat tombol profil ditekan
-            },
-          ),
-        ],
+        actions: const [],
       ),
-      body: _widgetOptions.elementAt(_selectedIndex),
-      floatingActionButton:
-          _selectedIndex == 0
-              ? FloatingActionButton.extended(
-                onPressed: () {
-                  // Navigasi ke halaman form laporan baru
-                  // Navigator.push(
-                  //   context,
-                  //   MaterialPageRoute(
-                  //     builder:
-                  //         (context) => NewReportFormPage(
-                  //           onNewReport: (newReport) {
-                  //             // Callback saat laporan baru berhasil dibuat
-                  //             // Tambahkan laporan baru ke list lokal dan refresh UI
-                  //             setState(() {
-                  //               _laporanSampah.add(newReport);
-                  //             });
-                  //             _fetchLaporan(); // Opsional: refresh dari API untuk memastikan data konsisten
-                  //           },
-                  //         ),
-                  //   ),
-                  // );
-                },
-                icon: const Icon(Icons.add, color: Colors.white),
-                label: const Text(
-                  'Lapor Sampah Baru',
-                  style: TextStyle(color: Colors.white),
+      body: RefreshIndicator(
+        onRefresh: _refreshReports,
+        child: FutureBuilder<ListLaporanResponse>(
+          future: _futureReports,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            } else if (snapshot.hasError) {
+              return Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.cloud_off, color: Colors.red, size: 60),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Gagal memuat laporan. Pastikan Anda terhubung ke internet dan sudah login. '
+                        'Detail Error: ${snapshot.error}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.red, fontSize: 16),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: _refreshReports,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Coba Lagi'),
+                        style: ElevatedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          backgroundColor: AppColor.mygreen,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                backgroundColor: Colors.green[600],
-              )
-              : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      bottomNavigationBar: CustomBottomNavBar(
-        selectedIndex: _selectedIndex,
-        onItemTapped: (index) {
-          setState(() {
-            _selectedIndex = index;
-            // Jika pindah ke tab Beranda, refresh data
-            if (index == 0) {
-              _fetchLaporan();
+              );
+            } else if (!snapshot.hasData ||
+                snapshot.data?.data == null ||
+                (snapshot.data?.data?.isEmpty ?? true)) {
+              // Updated this condition for better null safety
+              return Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.inbox, color: Colors.grey, size: 60),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Belum ada laporan sampah saat ini. Yuk, buat laporan pertama Anda!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: _refreshReports,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Refresh Daftar'),
+                        style: ElevatedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          backgroundColor: AppColor.mygreen,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            } else {
+              // This line is now safer, using null-aware and null-coalescing operators
+              final List<Data> reports =
+                  snapshot.data!.data ?? []; // The fix here
+              // Even though the above 'else if' should catch it, this makes it truly robust.
+
+              if (reports.isEmpty) {
+                // Double-check in case an empty list was returned directly
+                return Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.inbox, color: Colors.grey, size: 60),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Belum ada laporan sampah saat ini. Yuk, buat laporan pertama Anda!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: _refreshReports,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Refresh Daftar'),
+                          style: ElevatedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            backgroundColor: AppColor.mygreen,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.all(8.0),
+                itemCount: reports.length,
+                itemBuilder: (context, index) {
+                  final Data report = reports[index];
+                  return Card(
+                    key: ValueKey(report.id),
+                    elevation: 4,
+                    margin: const EdgeInsets.symmetric(
+                      vertical: 8.0,
+                      horizontal: 4.0,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.0),
+                    ),
+                    child: InkWell(
+                      onTap: () async {
+                        final bool? result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (context) => EditReportPage(report: report),
+                          ),
+                        );
+                        if (result == true) {
+                          _refreshReports();
+                        }
+                      },
+                      onLongPress: () => _showUpdateStatusBottomSheet(report),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              report.judul ?? 'Judul Tidak Tersedia',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppColor.mygreen,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: Chip(
+                                label: Text(
+                                  report.status?.toUpperCase() ??
+                                      'STATUS TIDAK DIKETAHUI',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                backgroundColor: _getStatusColor(report.status),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            if (report.imageUrl != null &&
+                                report.imageUrl!.isNotEmpty)
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8.0),
+                                child: CachedNetworkImage(
+                                  imageUrl: report.imageUrl!,
+                                  placeholder:
+                                      (context, url) => const Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                  errorWidget:
+                                      (context, url, error) => const Icon(
+                                        Icons.image_not_supported,
+                                        size: 60,
+                                        color: Colors.grey,
+                                      ),
+                                  width: double.infinity,
+                                  height: 200,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            if (report.imageUrl != null &&
+                                report.imageUrl!.isNotEmpty)
+                              const SizedBox(height: 12),
+                            Text(
+                              report.isi ?? 'Isi laporan tidak tersedia.',
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            if (report.lokasi != null &&
+                                report.lokasi!.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 4.0),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.location_on,
+                                      size: 16,
+                                      color: Colors.grey,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        'Lokasi: ${report.lokasi}',
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.grey,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            if (report.user != null &&
+                                report.user!.name != null)
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.person,
+                                    size: 16,
+                                    color: Colors.grey,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Pelapor: ${report.user!.name}',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Dibuat: ${report.createdAt != null ? DateFormat('dd MMMEEEE HH:mm').format(report.createdAt!.toLocal()) : 'N/A'}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                                Text(
+                                  'Diperbarui: ${report.updatedAt != null ? DateFormat('dd MMMEEEE HH:mm').format(report.updatedAt!.toLocal()) : 'N/A'}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Align(
+                              alignment: Alignment.bottomRight,
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  final bool? result = await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder:
+                                          (context) =>
+                                              EditReportPage(report: report),
+                                    ),
+                                  );
+                                  if (result == true) {
+                                    _refreshReports();
+                                  }
+                                },
+                                icon: const Icon(Icons.edit, size: 18),
+                                label: const Text('Edit'),
+                                style: ElevatedButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  backgroundColor: AppColor.mygreen,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              );
             }
-          });
+          },
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final bool? result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AddReportPage()),
+          );
+          if (result == true) {
+            _refreshReports();
+          }
         },
+        tooltip: 'Tambah Laporan',
+        child: const Icon(Icons.add),
       ),
     );
+  }
+
+  Color _getStatusColor(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'masuk':
+        return Colors.blue;
+      case 'proses':
+        return Colors.orange;
+      case 'selesai':
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'masuk':
+        return Icons.inbox;
+      case 'proses':
+        return Icons.settings;
+      case 'selesai':
+        return Icons.check_circle;
+      default:
+        return Icons.help_outline;
+    }
   }
 }

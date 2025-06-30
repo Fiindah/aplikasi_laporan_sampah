@@ -1,9 +1,8 @@
-import 'package:aplikasi_laporan_sampah/constant/app_color.dart';
-import 'package:aplikasi_laporan_sampah/pages/home_page.dart';
-import 'package:aplikasi_laporan_sampah/pages/login_page.dart';
-// import 'package:aplikasi_laporan_sampah/pages/profile_screen.dart';
-import 'package:aplikasi_laporan_sampah/pages/register_page.dart';
-import 'package:aplikasi_laporan_sampah/pages/splash_page.dart';
+import 'package:aplikasi_laporan_sampah/login_page.dart';
+import 'package:aplikasi_laporan_sampah/pages/main_wrapper_page.dart';
+import 'package:aplikasi_laporan_sampah/register_page.dart';
+import 'package:aplikasi_laporan_sampah/splash_page.dart';
+import 'package:aplikasi_laporan_sampah/welcome_page.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -13,24 +12,30 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      initialRoute: "/",
-      routes: {
-        "/": (context) => SplashScreen(),
-        "/login": (context) => LoginScreenApi(),
-        LoginScreenApi.id: (context) => LoginScreenApi(),
-        RegisterScreenAPI.id: (context) => RegisterScreenAPI(),
-        HomePage.id: (context) => HomePage(),
-      },
-      title: 'EcoGreen',
-      debugShowCheckedModeBanner: false,
+      title: 'EcoGreen App',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: AppColor.mygreen),
+        primarySwatch: Colors.green,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      // home: HomePage(),
+      // Set SplashScreen as the initial route
+      home: const SplashScreen(),
+      // Define named routes
+      routes: {
+        SplashScreen.id:
+            (context) =>
+                const SplashScreen(), // Ensure SplashScreen can be a named route
+        WelcomePage.id:
+            (context) => const WelcomePage(), // Add WelcomePage route
+        LoginScreenApi.id: (context) => const LoginScreenApi(),
+        RegisterScreenAPI.id: (context) => const RegisterScreenAPI(),
+        MainWrapperPage.id: (context) => const MainWrapperPage(),
+        // No need to define HomePage, HistoryPage, StatisticPage here if they are only
+        // accessed via MainWrapperPage's PageView.
+      },
+      debugShowCheckedModeBanner: false,
     );
   }
 }
