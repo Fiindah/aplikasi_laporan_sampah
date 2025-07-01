@@ -2,7 +2,7 @@
 
 import 'dart:convert';
 
-import 'package:aplikasi_laporan_sampah/models/login_response.dart';
+import 'package:aplikasi_laporan_sampah/models/laporan_data_model.dart';
 
 ListLaporanResponse listLaporanResponseFromJson(String str) =>
     ListLaporanResponse.fromJson(json.decode(str));

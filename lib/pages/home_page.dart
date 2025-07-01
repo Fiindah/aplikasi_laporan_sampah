@@ -149,6 +149,7 @@ class _HomePageState extends State<HomePage> {
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         backgroundColor: AppColor.mygreen,
+        foregroundColor: Colors.white,
         centerTitle: false,
         actions: const [],
       ),
@@ -198,7 +199,6 @@ class _HomePageState extends State<HomePage> {
             } else if (!snapshot.hasData ||
                 snapshot.data?.data == null ||
                 (snapshot.data?.data?.isEmpty ?? true)) {
-              // Updated this condition for better null safety
               return Center(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16.0),
@@ -234,13 +234,10 @@ class _HomePageState extends State<HomePage> {
                 ),
               );
             } else {
-              // This line is now safer, using null-aware and null-coalescing operators
-              final List<Data> reports =
-                  snapshot.data!.data ?? []; // The fix here
-              // Even though the above 'else if' should catch it, this makes it truly robust.
+              // This line is already robust and safe
+              final List<Data> reports = snapshot.data!.data ?? [];
 
               if (reports.isEmpty) {
-                // Double-check in case an empty list was returned directly
                 return Center(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(16.0),
@@ -387,7 +384,7 @@ class _HomePageState extends State<HomePage> {
                                     const SizedBox(width: 4),
                                     Expanded(
                                       child: Text(
-                                        'Lokasi: ${report.lokasi}',
+                                        'Lokasi: ${report.lokasi ?? 'N/A'}', // Added ?? 'N/A' here
                                         style: const TextStyle(
                                           fontSize: 13,
                                           color: Colors.grey,
@@ -409,7 +406,7 @@ class _HomePageState extends State<HomePage> {
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    'Pelapor: ${report.user!.name}',
+                                    'Pelapor: ${report.user!.name ?? 'N/A'}', // Added ?? 'N/A' here
                                     style: const TextStyle(
                                       fontSize: 13,
                                       color: Colors.grey,
@@ -491,6 +488,7 @@ class _HomePageState extends State<HomePage> {
           }
         },
         tooltip: 'Tambah Laporan',
+        foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
     );

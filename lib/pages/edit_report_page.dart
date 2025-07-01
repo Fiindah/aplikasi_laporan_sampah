@@ -42,35 +42,26 @@ class _EditReportPageState extends State<EditReportPage> {
     if (pickedFile != null) {
       setState(() {
         _selectedImage = File(pickedFile.path);
-        _currentImageUrl = null; // Clear current URL if a new image is picked
+        _currentImageUrl = null;
       });
     }
   }
 
   Future<void> _updateReport() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       _isLoading = true;
     });
 
     try {
-      String? imageUrlToSend = _currentImageUrl;
-      if (_selectedImage != null) {
-        // TODO: Implement actual image upload logic here to get a new URL
-        imageUrlToSend =
-            'https://placehold.co/600x400/00FF00/000000/png?text=Updated+Image';
-      }
-
-      final response = await ReportService().updateReport(
+      await ReportService().updateReport(
         reportId: widget.report.id.toString(),
         judul: _judulController.text,
         isi: _isiController.text,
         lokasi: _lokasiController.text,
-        status: widget.report.status!, // Pass original status, not edited here
-        imageUrl: imageUrlToSend,
+        status: widget.report.status!,
+        imageFile: _selectedImage, // ✅ File? yang dikirim ke API
       );
 
       _showSnackBar('Laporan berhasil diperbarui!', Colors.green);
@@ -167,7 +158,7 @@ class _EditReportPageState extends State<EditReportPage> {
       appBar: AppBar(
         title: const Text(
           'Edit Laporan',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(color: Colors.white),
         ),
         backgroundColor: AppColor.mygreen,
         actions: [
@@ -186,69 +177,47 @@ class _EditReportPageState extends State<EditReportPage> {
                 child: Form(
                   key: _formKey,
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       TextFormField(
                         controller: _judulController,
-                        decoration: InputDecoration(
-                          labelText: 'Judul Laporan',
-                          hintText: 'Cth: Sampah menumpuk di jalan A',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          filled: true,
-                          fillColor: Colors.grey[100],
+                        decoration: _inputDecoration(
+                          'Judul Laporan',
+                          'Cth: Sampah menumpuk di jalan A',
                         ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Judul laporan tidak boleh kosong';
-                          }
-                          return null;
-                        },
+                        validator:
+                            (value) =>
+                                value!.isEmpty
+                                    ? 'Judul tidak boleh kosong'
+                                    : null,
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _isiController,
                         maxLines: 5,
-                        decoration: InputDecoration(
-                          labelText: 'Isi Laporan',
-                          hintText: 'Jelaskan detail laporan Anda...',
-                          alignLabelWithHint: true,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          filled: true,
-                          fillColor: Colors.grey[100],
+                        decoration: _inputDecoration(
+                          'Isi Laporan',
+                          'Jelaskan detail laporan Anda...',
                         ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Isi laporan tidak boleh kosong';
-                          }
-                          return null;
-                        },
+                        validator:
+                            (value) =>
+                                value!.isEmpty
+                                    ? 'Isi tidak boleh kosong'
+                                    : null,
                       ),
                       const SizedBox(height: 16),
                       TextFormField(
                         controller: _lokasiController,
-                        decoration: InputDecoration(
-                          labelText: 'Lokasi Kejadian',
-                          hintText: 'Cth: Jalan Merdeka No. 10, Jakarta',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          filled: true,
-                          fillColor: Colors.grey[100],
+                        decoration: _inputDecoration(
+                          'Lokasi Kejadian',
+                          'Cth: Jalan Merdeka No. 10',
                         ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Lokasi tidak boleh kosong';
-                          }
-                          return null;
-                        },
+                        validator:
+                            (value) =>
+                                value!.isEmpty
+                                    ? 'Lokasi tidak boleh kosong'
+                                    : null,
                       ),
                       const SizedBox(height: 16),
-                      // Removed DropdownButtonFormField for status
-                      // Image Picker / Display Area
                       GestureDetector(
                         onTap: _pickImage,
                         child: Container(
@@ -279,28 +248,9 @@ class _EditReportPageState extends State<EditReportPage> {
                                             (context, url, error) => const Icon(
                                               Icons.image_not_supported,
                                               size: 50,
-                                              color: Colors.grey,
                                             ),
                                       )
-                                      : Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.camera_alt,
-                                            color: Colors.grey[600],
-                                            size: 50,
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'Pilih atau Ganti Gambar',
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                        ],
-                                      )),
+                                      : _imagePlaceholder()),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -314,13 +264,12 @@ class _EditReportPageState extends State<EditReportPage> {
                             style: TextStyle(fontSize: 18),
                           ),
                           style: ElevatedButton.styleFrom(
-                            foregroundColor: Colors.white,
                             backgroundColor: AppColor.mygreen,
+                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            elevation: 5,
                           ),
                         ),
                       ),
@@ -328,6 +277,30 @@ class _EditReportPageState extends State<EditReportPage> {
                   ),
                 ),
               ),
+    );
+  }
+
+  InputDecoration _inputDecoration(String label, String hint) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+      filled: true,
+      fillColor: Colors.grey[100],
+    );
+  }
+
+  Widget _imagePlaceholder() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.camera_alt, size: 50, color: Colors.grey[600]),
+        const SizedBox(height: 8),
+        Text(
+          'Pilih atau Ganti Gambar',
+          style: TextStyle(color: Colors.grey[600], fontSize: 16),
+        ),
+      ],
     );
   }
 }
